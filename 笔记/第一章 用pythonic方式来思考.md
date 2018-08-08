@@ -70,5 +70,160 @@
 
 ### 用辅助函数来取代复杂的表达式
 
+- 开发者很容易过度运用python的语法特性,从而写出那种特别复杂并且难以理解的单行表达式
+- 把复杂的表达式移入辅助函数之中,如果要反复使用相同的逻辑,更应该这么做
+- 使用if/else表达式,要比用or或and这样的boolean操作符写成的表达式更加清晰.
 
+### 了解切割序列的方法
+
+- 从列表开头获取切片,不要在start处写上0,应写成a[:5]
+- 切片一直要取到列表末尾,把end留空,如a[5:]
+- 由于切片操作越界访问也没有问题,所以可以通过限定访问元素的个数来避免越界访问,如获取开头的20个元素a[:20],或者获取末尾的20个元素a[-20:]
+- 单个元素进行访问时,会存在越界访问报错问题.    
+- 切片会产生新的对象
+- 对list赋值的时候,如果被赋值的是使用切片操作的变量,那么赋值操作就是把源列表中的切片操作指定的位置替换成新的值.如b=a,a[:] = [1,2,3], 这个时候,b is a依然成立.
+
+### 在单次切片操作内,不要同时指定start,end和stride
+
+somelist\[start:end\:stride]
+
+```python
+#偶数
+a[::2]
+#奇数
+a[1::2]
+#反转
+a[::-1]
+```
+
+- 既有start和end,又有stride的切割操作,可能会令人费解
+- 尽量使用stride为正数,且不带start或end索引的切割操作.尽量避免用负数做stride
+- 在同一个切片操作内,不要同时使用start,end和stride.如果确实需要执行这种操作,那就考虑将其拆解为两条赋值语句,其中一条做范围切割,另一条做步进切割,或考虑使用内置itertools模块的islice(这个是什么?)
+
+### 用列表推到来取代map和filter
+
+- 列表推导要比内置的map和filter函数清晰,因为它无需额外编写lambda表达式
+- 列表推导可以跳过输入列表中的某些元素,如果改用map来做,那就必须辅以filter方能实现
+
+### 不要使用含有两个以上的表达式的列表推导
+
+- 列表推导支持多级循环,每一级循环也支持多项条件
+
+  - filtered = [[x for x in row if x%3==0] for row in matrix if sum(row) >= 10]
+
+- 超过两个表达式的列表推导是很难理解的,应该尽量避免
+
+  > flat = []
+  >
+  > for sublist1 in my_lists:
+  >
+  > ​	for sublist2 in sublist1:
+  >
+  > ​		flat.extend(sublist2)
+
+### 用生成器表达式来改写数据量较大的列表推导
+
+> 列表推导缺点:在推导过程中,对于输入序列中的每个值来说,可能都要创建仅含一项元素的全新列表.当输入的数据比较少时,性能ok.但是大数量的时候,则会出现问题:
+>
+> 如:输出一个很大的文件的每行的字数value = [len(x) for x in open('/tmp/my_file.txt')]
+
+解决大数据量问题,使用python生成器表达式:
+
+```python
+#区别于列表推导式,最外层使用圆括号而不是方括号
+it = (len(x) for x in open('/tmp/my_file.txt'))
+#一次获取每行的字数
+print(next(it))
+#生成器可以相互组合
+roots = ((x, x**0.5) for x in it)
+print(next(roots))
+```
+
+- 当输入的数据量较大时,列表推导可能会因为占用太多内存而出问题.
+- 由生成器表达式所返回的迭代器,可以逐次产生输出值,从而避免了内存用量问题
+- 把某个生成器表达式所返回的迭代器,放在另一个生成器表达式的for 子表达式中,即可将二者组合起来
+- 串在一起的生成器表达式执行速度很快
+
+### 尽量用enumerate取代range
+
+- enumerate函数提供了一种精简的写法,可以在遍历迭代器时获知每个元素的索引
+- 尽量用enumerate来改写那种将range与下标访问相结合的序列遍历代码
+- 可以用enumerate提供第二个参数,以指定开始计数时所用的值(默认为0)
+
+### 用zip函数同时遍历两个迭代器
+
+- 内置zip函数可以平行地遍历多个迭代器
+- python3中的zip相当于生成器,会在遍历过程中逐次产生元组,而python2中的zip则是直接把这些元组完全生成好,并一次性地返回整份列表.
+- 如果提供的迭代器长度不等,那么zip就会自动提前终止
+- itertools内置模块中的zip_longest函数可以平行地遍历多个迭代器,而不用在乎它们的长度是否相等
+
+### 不要在for和while循环后面写else块
+
+```python
+for i in range(3):
+    print('loop %d' % i)
+else:
+    #在for循环正确执行结束后,执行else语句;如果for循环通过break跳出,则不执行else语句
+    print('Else block!')
+    
+'''
+Loop 0
+Loop 1
+Loop 2
+Else block!
+'''
+```
+
+- python有种特殊语法,可在for及while循环的内部语句块之后紧跟一个else块
+- 只有当整个循环主体都没遇到break语句时,循环后面的else块才会执行
+- 不要在循环后面使用else块,因为这种写法既不直观,又容易引人误解
+
+### 合理利用try/except/else/finally/结构中的每个代码块
+
+``` python
+#finally块
+'''如果既要将异常向上传播,又要在异常发生时执行清理工作,就可以使用try/finally结构;常见用途是确保程序能够可靠地关闭文件句柄.在这段代码中,read方法所抛出的异常会向上传播给调用方.'''
+handle = open('/tmp/random_data.txt') #May raise IOError
+try:
+    data = handle.read()  #May raise UnicodeDecodeError
+finally:
+    handle.close()  #Always runs after try
+    
+#else块
+'''
+try/except/else结构可以清晰的描述出哪些异常会由字的代码来处理,哪些异常会传播到上一级.
+如果try块没有发生异常,那么就执行else块
+'''
+def load_json_key(data, key):
+    try:
+        result_dict = json.loads(data)  #May raise ValueError
+    except ValueError as e:
+        raise KeyError from e
+    else:
+        return result_dict[key] #May raise KeyError,else语句块出现异常时,异常会向上传播到except语句块进行处理
+    
+#混合使用
+UNDEFINED = object()
+
+def divide_json(path):
+    handle = open(path, 'r+') #May raise IOError
+    try:
+        data = handle.read()    #May raise UnicodeDecodeError
+        op = json.loads(data)    #May raise ValueError
+        value = (op['numerator']/op['denominator'])  #May raise ZeroDvisionError
+    except ZeroDivisionError as e:
+        return UNDEFINED
+    else:
+        op['result'] = value
+        result = json.dumps(op)
+        handle.seek(0)
+        handle.write(result)  #May raise IOError
+        return value
+    finally:
+        handle.close()  #Always runs
+```
+
+- 无论try块是否发生异常,都可利用try/finally符合语句中的finally块来执行清理工作
+- else块可以用来缩减try块中的代码量,并把没有发生异常时所要执行的语句与try/except代码块隔开
+- 顺利运行try块后,若想使某些操作能在finally块的清理代码之前执行,则可将这些操作写到else块中.
 
